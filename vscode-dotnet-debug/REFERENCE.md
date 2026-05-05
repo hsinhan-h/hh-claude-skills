@@ -20,6 +20,41 @@
             "group": "build"
         },
         {
+            "label": "watch: {ProjectName}",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "watch",
+                "--project",
+                "${workspaceFolder}/{ProjectDir}/{ProjectName}.csproj",
+                "--non-interactive",
+                "run",
+                "--no-restore"
+            ],
+            "problemMatcher": {
+                "base": "$msCompile",
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "dotnet watch|Building",
+                    "endsPattern": "Now listening on:|Application started|dotnet watch .*Started"
+                }
+            },
+            "isBackground": true,
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "watchers"
+            },
+            "options": {
+                "env": {
+                    "ASPNETCORE_ENVIRONMENT": "Development",
+                    "ASPNETCORE_URLS": "{applicationUrl}",
+                    "DOTNET_WATCH_RESTART_ON_RUDE_EDIT": "1",
+                    "DOTNET_WATCH_SUPPRESS_EMOJIS": "1"
+                }
+            }
+        },
+        {
             "label": "build: solution",
             "command": "dotnet",
             "type": "process",
@@ -41,7 +76,7 @@
 
 ## launch.json templates
 
-### Web project (no launchUrl)
+### Web project — Standard (no launchUrl)
 
 ```json
 {
@@ -53,18 +88,23 @@
     "args": [],
     "cwd": "${workspaceFolder}/{ProjectDir}",
     "stopAtEntry": false,
+    "console": "integratedTerminal",
     "serverReadyAction": {
         "action": "openExternally",
-        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+        "uriFormat": "{httpsUrl}/",
+        "pattern": "Now listening on:"
     },
     "env": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_URLS": "{applicationUrl}"
+    },
+    "sourceFileMap": {
+        "/Views": "${workspaceFolder}"
     }
 }
 ```
 
-### Web project (with launchUrl, e.g. swagger)
+### Web project — Standard (with launchUrl, e.g. swagger)
 
 ```json
 {
@@ -76,14 +116,92 @@
     "args": [],
     "cwd": "${workspaceFolder}/{ProjectDir}",
     "stopAtEntry": false,
+    "console": "integratedTerminal",
     "serverReadyAction": {
         "action": "openExternally",
-        "uriFormat": "%s/{launchUrl}",
-        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+        "uriFormat": "{httpsUrl}/{launchUrl}",
+        "pattern": "Now listening on:"
     },
     "env": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_URLS": "{applicationUrl}"
+    },
+    "sourceFileMap": {
+        "/Views": "${workspaceFolder}"
+    }
+}
+```
+
+### Web project — Hot Reload (no launchUrl)
+
+Uses `dotnet watch` directly; no `preLaunchTask` needed. `cwd` is workspace root.
+
+```json
+{
+    "name": "{ProjectName} - Hot Reload",
+    "type": "coreclr",
+    "request": "launch",
+    "program": "dotnet",
+    "args": [
+        "watch",
+        "--project",
+        "${workspaceFolder}/{ProjectDir}/{ProjectName}.csproj",
+        "--non-interactive",
+        "run",
+        "--no-restore",
+        "--",
+        "--urls={applicationUrl}"
+    ],
+    "cwd": "${workspaceFolder}",
+    "stopAtEntry": false,
+    "console": "integratedTerminal",
+    "serverReadyAction": {
+        "action": "openExternally",
+        "uriFormat": "{httpsUrl}/",
+        "pattern": "Now listening on:"
+    },
+    "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "{applicationUrl}"
+    },
+    "sourceFileMap": {
+        "/Views": "${workspaceFolder}"
+    }
+}
+```
+
+### Web project — Hot Reload (with launchUrl, e.g. swagger)
+
+```json
+{
+    "name": "{ProjectName} - Hot Reload",
+    "type": "coreclr",
+    "request": "launch",
+    "program": "dotnet",
+    "args": [
+        "watch",
+        "--project",
+        "${workspaceFolder}/{ProjectDir}/{ProjectName}.csproj",
+        "--non-interactive",
+        "run",
+        "--no-restore",
+        "--",
+        "--urls={applicationUrl}"
+    ],
+    "cwd": "${workspaceFolder}",
+    "stopAtEntry": false,
+    "console": "integratedTerminal",
+    "serverReadyAction": {
+        "action": "openExternally",
+        "uriFormat": "{httpsUrl}/{launchUrl}",
+        "pattern": "Now listening on:"
+    },
+    "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "{applicationUrl}"
+    },
+    "sourceFileMap": {
+        "/Views": "${workspaceFolder}"
     }
 }
 ```
@@ -119,12 +237,17 @@
 }
 ```
 
-### Compound (add when ≥ 2 web projects)
+### Compounds (add when ≥ 2 web projects)
 
 ```json
 {
     "name": "同時啟動所有 Web 專案",
     "configurations": ["{WebProject1}", "{WebProject2}"],
+    "stopAll": true
+},
+{
+    "name": "同時啟動所有 Web 專案 (Hot Reload)",
+    "configurations": ["{WebProject1} - Hot Reload", "{WebProject2} - Hot Reload"],
     "stopAll": true
 }
 ```
@@ -132,10 +255,11 @@
 ## Variable reference
 
 | Variable | Description | Example |
-|---|---|---|
+| --- | --- | --- |
 | `{ProjectName}` | `.csproj` filename without extension | `MyApp.Api` |
 | `{ProjectDir}` | Project folder path relative to workspace root | `src/MyApp.Api` |
 | `{TargetFramework}` | Value from `<TargetFramework>` | `net9.0` |
-| `{applicationUrl}` | URL from launchSettings.json | `https://localhost:5001;http://localhost:5000` |
+| `{applicationUrl}` | Full URL string from launchSettings.json | `https://localhost:5001;http://localhost:5000` |
+| `{httpsUrl}` | HTTPS-only URL extracted from `applicationUrl` | `https://localhost:5001` |
 | `{launchUrl}` | `launchUrl` from launchSettings.json | `swagger` |
 | `{SolutionFile}` | `.sln` filename | `MyApp.sln` |

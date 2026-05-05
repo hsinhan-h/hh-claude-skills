@@ -1,6 +1,6 @@
 ---
 name: vscode-debug-setup
-description: Automatically generate .vscode/launch.json and .vscode/tasks.json debug configurations for .NET projects, with browser auto-open and multi-project compound launch support. Use when user asks to create VS Code debug files, set up debugging, configure launch.json or tasks.json for a .NET project, or mentions "debug 設定"、"除錯設定"、"launch.json"、"建debug檔"。
+description: Automatically generate .vscode/launch.json and .vscode/tasks.json debug configurations for .NET projects, with browser auto-open, hot reload (dotnet watch) support, and multi-project compound launch support. Use when user asks to create VS Code debug files, set up debugging, configure launch.json or tasks.json for a .NET project, or mentions "debug 設定"、"除錯設定"、"launch.json"、"建debug檔"、"hot reload"、"dotnet watch"。
 ---
 
 # VS Code Debug Setup
@@ -28,22 +28,30 @@ Also collect per project:
 For each **web project**, read `{ProjectDir}/Properties/launchSettings.json`:
 
 1. Find the first non-IIS-Express profile (`commandName` is not `"IISExpress"`)
-2. Take `applicationUrl` — prefer the `https://` URL if multiple are listed
-3. If `launchUrl` is present (e.g. `swagger`), record it for use in `uriFormat`
+2. Take `applicationUrl` — full value (e.g. `https://localhost:5001;http://localhost:5000`)
+3. Also extract `{httpsUrl}` — the https-only portion (e.g. `https://localhost:5001`)
+4. If `launchUrl` is present (e.g. `swagger`), record it for use in `uriFormat`
 
 ### Step 3 — Generate tasks.json
 
-One build task per web + test project, label format: `"build: {ProjectName}"`.
+For each **web + test project**, one `"build: {ProjectName}"` task.
 Add a `"build: solution"` task (`isDefault: true`) that builds the whole `.sln` (Glob `*.sln` to get the path).
+For each **web project**, also add a `"watch: {ProjectName}"` background task using `dotnet watch` for hot reload.
 
 See [REFERENCE.md § tasks.json](REFERENCE.md#tasksjson-template).
 
 ### Step 4 — Generate launch.json
 
-- **Web project**: coreclr launch with `serverReadyAction`; add `uriFormat: "%s/{launchUrl}"` when `launchUrl` is present
-- **Test project**: `program: "dotnet"`, `args: ["test", ...]`, `console: "integratedTerminal"`
-- Always append an "Attach to Process" config at the end
-- **≥ 2 web projects**: add a `compounds` entry to launch all web projects at once
+For each **web project**, generate **two** launch configurations in sequence:
+1. **Standard launch**: `type: coreclr`, `preLaunchTask: "build: {ProjectName}"`, full `.dll` path as `program`, `cwd` set to project dir, `console: "integratedTerminal"`, `sourceFileMap`, and `serverReadyAction`; use `uriFormat: "{httpsUrl}/{launchUrl}"` when `launchUrl` is present, otherwise `"{httpsUrl}/"`
+2. **Hot Reload launch**: `program: "dotnet"`, `args: ["watch", "--project", ..., "--non-interactive", "run", "--no-restore", "--", "--urls={applicationUrl}"]`, no `preLaunchTask`, `cwd` set to workspace root, `console: "integratedTerminal"`, `sourceFileMap`, and `serverReadyAction`
+
+For each **test project**: one launch config with `program: "dotnet"`, `args: ["test", ...]`, `console: "integratedTerminal"`.
+Always append an "Attach to Process" config at the end.
+
+**≥ 2 web projects**: add two `compounds` entries:
+1. **Standard compound** — launches all web projects using their standard configs
+2. **Hot Reload compound** — launches all web projects using their Hot Reload configs
 
 See [REFERENCE.md § launch.json](REFERENCE.md#launchjson-templates).
 
@@ -52,4 +60,4 @@ See [REFERENCE.md § launch.json](REFERENCE.md#launchjson-templates).
 1. `mkdir -p .vscode` (if not exists)
 2. Write `.vscode/tasks.json`
 3. Write `.vscode/launch.json`
-4. Report each web project name and its URL
+4. Report each web project name, its URL, and confirm that standard + hot reload configs were generated
